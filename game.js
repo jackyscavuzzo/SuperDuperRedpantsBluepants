@@ -13,6 +13,7 @@ const player = {
   jumpPower: -15,
   gravity: 0.5,
   velocityY: 0,
+  health: 100,
 };
 
 // Add these at the top of your file to track key states
@@ -24,6 +25,14 @@ const keys = {
 // Add these new variables at the top
 let wave = 1;
 let baseEnemySpeed = 0.8;
+let gameOver = false;
+let score = 0; // Let's add a score too! It goes up the longer you survive
+let lives = 3; // Add this new line
+
+// Add with other global variables
+let projectiles = [];
+const PROJECTILE_SPEED = 7;
+const PROJECTILE_SIZE = 5;
 
 // Add this after the player object:
 const enemies = [
@@ -41,7 +50,47 @@ const enemies = [
     height: 30,
     speed: 0.5, // Even slower (was 1.5)
   },
+  {
+    x: 700,
+    y: canvas.height - 30,
+    width: 30,
+    height: 30,
+    speed: 0.5,
+  },
+  {
+    x: 900,
+    y: canvas.height - 30,
+    width: 30,
+    height: 30,
+    speed: 0.5,
+  },
 ];
+
+const boss = {
+  x: canvas.width / 2,
+  y: canvas.height - 50,
+  width: 50,
+  height: 50,
+  speed: 2,
+  health: 3,
+  active: false,
+  spawnTimer: 0,
+  lastSpawnTime: 0,
+};
+
+function spawnBossMinions() {
+  if (boss.active && Date.now() - boss.lastSpawnTime > 3000) {
+    // Spawn every 3 seconds
+    enemies.push({
+      x: boss.x,
+      y: boss.y,
+      width: 30,
+      height: 30,
+      speed: baseEnemySpeed * 1.2,
+    });
+    boss.lastSpawnTime = Date.now();
+  }
+}
 
 // Add this new function to check if player hits an enemy
 function checkCollision(player, enemy) {
@@ -62,10 +111,6 @@ function isJumpingOnEnemy(player, enemy) {
     player.x + player.width > enemy.x
   );
 }
-
-// Add this at the top with other variables
-let gameOver = false;
-let score = 0; // Let's add a score too! It goes up the longer you survive
 
 // Add this new function to reset the game
 function resetGame() {
@@ -95,32 +140,41 @@ function resetGame() {
 
   gameOver = false;
   score = 0;
+  lives = 3;
+  boss.active = false;
+  boss.health = 3;
+  boss.lastSpawnTime = 0;
+  projectiles = []; // Clear projectiles
 }
 
-// Add this function to create new enemies
 function spawnNewWave() {
   wave++;
-  // Increase speed slightly with each wave
+
+  // Check if it's boss wave (wave 10)
+  if (wave === 10) {
+    enemies.length = 0;
+    boss.active = true;
+    boss.health = 3;
+    boss.x = canvas.width / 2;
+    return;
+  }
+
+  // Regular wave logic
   let newSpeed = baseEnemySpeed + wave * 0.2;
+  const numEnemies = wave + 1;
+  enemies.length = 0;
 
-  enemies.push(
-    {
-      x: 100, // Spawn from left
+  for (let i = 0; i < numEnemies; i++) {
+    const spacing = canvas.width / (numEnemies + 1);
+    enemies.push({
+      x: spacing * (i + 1),
       y: canvas.height - 30,
       width: 30,
       height: 30,
-      speed: newSpeed,
-    },
-    {
-      x: canvas.width - 130, // Spawn from right
-      y: canvas.height - 30,
-      width: 30,
-      height: 30,
-      speed: newSpeed * 0.8, // Slightly slower
-    }
-  );
+      speed: newSpeed * (0.8 + Math.random() * 0.4),
+    });
+  }
 }
-
 // Listen for keyboard buttons
 document.addEventListener("keydown", function (event) {
   // Move right with right arrow
@@ -132,9 +186,12 @@ document.addEventListener("keydown", function (event) {
     keys.left = true;
   }
   // Jump with spacebar
-  if (event.key === " " && !player.jumping) {
+  if (event.key === " ") {
     player.velocityY = player.jumpPower;
-    player.jumping = true;
+  }
+  // Shoot with up arrow
+  if (event.key === "ArrowUp") {
+    shootProjectile();
   }
 
   if (gameOver) {
@@ -142,7 +199,6 @@ document.addEventListener("keydown", function (event) {
     return;
   }
 });
-
 // Add this new event listener for key releases
 document.addEventListener("keyup", function (event) {
   // Set key state to false when released
@@ -160,7 +216,6 @@ function gameLoop() {
   if (!gameOver) {
     score++;
   }
-
   // Clear the canvas
   ctx.clearRect(0, 0, canvas.width, canvas.height);
 
@@ -222,7 +277,7 @@ function gameLoop() {
           // Player jumped on enemy
           enemies.splice(i, 1);
           player.velocityY = player.jumpPower / 1.5;
-          score += 100;
+          score += 10000000;
 
           // Check if all enemies are defeated
           if (enemies.length === 0) {
@@ -238,7 +293,45 @@ function gameLoop() {
             );
           }
         } else {
-          gameOver = true;
+          handlePlayerHit();
+        }
+      }
+    }
+
+    // Boss logic
+    if (boss.active) {
+      // Move boss towards player
+      if (player.x > boss.x) {
+        boss.x += boss.speed;
+      } else {
+        boss.x -= boss.speed;
+      }
+
+      // Spawn minions
+      spawnBossMinions();
+
+      // Draw boss
+      ctx.fillStyle = "purple";
+      ctx.fillRect(boss.x, boss.y, boss.width, boss.height);
+
+      // Draw boss health
+      ctx.fillStyle = "red";
+      ctx.fillRect(boss.x, boss.y - 20, (boss.width * boss.health) / 3, 10);
+
+      // Check boss collision
+      if (boss.active && checkCollision(player, boss)) {
+        if (isJumpingOnEnemy(player, boss)) {
+          boss.health--;
+          player.velocityY = player.jumpPower / 1.5;
+          score += 200;
+
+          if (boss.health <= 0) {
+            boss.active = false;
+            score += 1000000000;
+            spawnNewWave();
+          }
+        } else {
+          handlePlayerHit();
         }
       }
     }
@@ -257,6 +350,9 @@ function gameLoop() {
     ctx.font = "20px Arial";
     ctx.textAlign = "left";
     ctx.fillText("Wave: " + wave, 10, 60);
+
+    // Update and draw projectiles
+    updateAndDrawProjectiles();
   } else {
     // Draw Game Over screen
     ctx.fillStyle = "rgba(0, 0, 0, 0.7)"; // Semi-transparent black
@@ -288,7 +384,185 @@ function gameLoop() {
 
   // Keep running the game
   requestAnimationFrame(gameLoop);
+} // Start the game!
+gameLoop();
+
+function handlePlayerHit() {
+  lives--;
+  if (lives <= 0) {
+    gameOver = true;
+  } else {
+    // Reset player position but keep score and wave
+    player.x = 100;
+    player.y = 200;
+    player.velocityY = 0;
+  }
 }
 
-// Start the game!
-gameLoop();
+// Add this to your game loop where you draw score or other UI elements
+function drawUI() {
+  // Draw score
+  ctx.fillStyle = "black";
+  ctx.font = "20px Arial";
+  ctx.fillText(`Score: ${score}`, canvas.width - 150, 30);
+
+  // Draw hearts in top right corner
+  const heartSize = 15;
+  const heartSpacing = 25;
+  const startX = canvas.width - (heartSize + heartSpacing);
+  for (let i = 0; i < lives; i++) {
+    drawHeart(startX + i * heartSpacing, 10, heartSize);
+  }
+}
+
+// Add this function to draw a heart symbol
+function drawHeart(x, y, size) {
+  ctx.save();
+  ctx.beginPath();
+  ctx.fillStyle = "red";
+
+  // Move to top center of heart
+  ctx.moveTo(x, y + size * 0.3);
+
+  // Left curve
+  ctx.bezierCurveTo(
+    x - size * 0.5,
+    y - size * 0.3, // Control point 1
+    x - size,
+    y + size * 0.3, // Control point 2
+    x,
+    y + size // End point
+  );
+
+  // Right curve
+  ctx.bezierCurveTo(
+    x + size,
+    y + size * 0.3, // Control point 1
+    x + size * 0.5,
+    y - size * 0.3, // Control point 2
+    x,
+    y + size * 0.3 // End point
+  );
+
+  ctx.fill();
+  ctx.restore();
+}
+
+function shootProjectile() {
+  projectiles.push({
+    x: player.x + player.width / 2,
+    y: player.y + player.height,
+    size: PROJECTILE_SIZE,
+    velocityY: PROJECTILE_SPEED,
+  });
+}
+
+function updateAndDrawProjectiles() {
+  // Update and draw projectiles
+  for (let i = projectiles.length - 1; i >= 0; i--) {
+    const projectile = projectiles[i];
+    projectile.y += projectile.velocityY;
+
+    // Remove projectiles that are off screen
+    if (projectile.y < 0) {
+      projectiles.splice(i, 1);
+      continue;
+    }
+
+    // Draw projectile
+    ctx.fillStyle = "yellow";
+    ctx.beginPath();
+    ctx.arc(projectile.x, projectile.y, projectile.size, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Check collisions with enemies
+    for (let j = enemies.length - 1; j >= 0; j--) {
+      const enemy = enemies[j];
+      if (
+        projectile.x > enemy.x &&
+        projectile.x < enemy.x + enemy.width &&
+        projectile.y > enemy.y &&
+        projectile.y < enemy.y + enemy.height
+      ) {
+        enemies.splice(j, 1);
+        projectiles.splice(i, 1);
+        score += 50;
+        if (enemies.length === 0) {
+          spawnNewWave();
+        }
+        break;
+      }
+    }
+
+    // Check collision with boss
+    if (
+      boss.active &&
+      projectile.x > boss.x &&
+      projectile.x < boss.x + boss.width &&
+      projectile.y > boss.y &&
+      projectile.y < boss.y + boss.height
+    ) {
+      boss.health--;
+      projectiles.splice(i, 1);
+      score += 200;
+
+      if (boss.health <= 0) {
+        boss.active = false;
+        score += 1000;
+        spawnNewWave();
+      }
+    }
+  }
+}
+function shootProjectile() {
+  const spread = 10; // Horizontal spread between projectiles
+  const numProjectiles = 10; // Number of projectiles to shoot
+  for (let i = 0; i < numProjectiles; i++) {
+    projectiles.push({
+      x:
+        player.x +
+        player.width / 2 -
+        (spread * (numProjectiles - 1)) / 2 +
+        i * spread,
+      y: player.y,
+      size: PROJECTILE_SIZE,
+      velocityY: +PROJECTILE_SPEED,
+    });
+  }
+}
+function spawnNewWave() {
+  wave++;
+
+  // Check if it's wave 50
+  if (wave === 50) {
+    enemies.length = 0; // Clear existing enemies
+    for (let i = 0; i < 1000; i++) {
+      enemies.push({
+        x: Math.random() * (canvas.width - 50), // Random x position
+        y: canvas.height - 50,
+        width: 50,
+        height: 50,
+        speed: 2,
+        health: 3,
+        isBoss: true, // Mark as boss
+      });
+    }
+    return;
+  }
+
+  // Regular wave logic
+  let newSpeed = baseEnemySpeed + wave * 0.2;
+  const numEnemies = wave + 1;
+  enemies.length = 0;
+
+  for (let i = 0; i < numEnemies; i++) {
+    const spacing = canvas.width / (numEnemies + 1);
+    enemies.push({
+      x: spacing * (i + 1),
+      y: canvas.height - 30,
+      width: 30,
+      height: 30,
+      speed: newSpeed * (0.8 + Math.random() * 0.4),
+    });
+  }
+}
