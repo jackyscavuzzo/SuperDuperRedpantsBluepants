@@ -590,6 +590,11 @@ async function submitScore(playerName, score) {
       }
     );
 
+    // Check if the response is OK
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+
     const result = await response.json();
     console.log("Score submitted:", result);
   } catch (error) {
