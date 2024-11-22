@@ -3,16 +3,59 @@
 <head>
     <title>My Awesome Platform Game!</title>
     <style>
+        /* Container for game and leaderboard */
+        .game-container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 20px;
+            padding: 20px;
+        }
+
         canvas {
             border: 2px solid black;
             background-color: skyblue;
         }
+
+        #leaderboard {
+            background-color: rgba(0, 0, 0, 0.7);
+            border: 2px solid #fff;
+            border-radius: 5px;
+            min-width: 300px;
+            display: inline-block;
+        }
+
+        /* Title for the leaderboard */
+        .leaderboard-title {
+            color: white;
+            font-family: monospace;
+            font-size: 24px;
+            text-align: center;
+            padding: 5px;
+            border-bottom: 2px solid #fff;
+            margin: 0;
+        }
+
+        .scores-container {
+            padding: 5px;
+        }
+
+        .scores-container div {
+            margin: 0;
+            line-height: 1.2;
+        }
     </style>
 </head>
 <body>
-    <canvas id="gameCanvas" width="800" height="400"></canvas>
-    <div id="leaderboard">
-        <!-- Leaderboard entries will be inserted here -->
+    <div class="game-container">
+        <canvas id="gameCanvas" width="800" height="400"></canvas>
+        <div id="leaderboard">
+            <div class="leaderboard-title">HIGH SCORES</div>
+            <div class="scores-container" style="color: white; font-family: monospace; font-size: 20px; white-space: pre; text-shadow: 2px 2px 0 #000;">
+                <div>loading...</div>
+            </div>
+            <!-- Leaderboard entries will be inserted here -->
+        </div>
     </div>
     <script src="game.js"></script>
     <script>
@@ -32,10 +75,30 @@
 
         function displayLeaderboard(leaderboard) {
             const leaderboardElement = document.getElementById('leaderboard');
-            leaderboardElement.innerHTML = leaderboard.map((entry, index) => `
-                <div>${index + 1}. ${entry.playerName} - ${entry.score}</div>
-            `).join('');
-            console.log(leaderboard);
+            const topTen = leaderboard
+                .sort((a, b) => b.score - a.score)
+                .slice(0, 10);
+            
+            // Add CSS styles for retro look
+            leaderboardElement.style.fontFamily = 'monospace';
+            leaderboardElement.style.fontSize = '20px';
+            leaderboardElement.style.whiteSpace = 'pre';
+            leaderboardElement.style.color = 'white';
+            leaderboardElement.style.textShadow = '2px 2px 0 #000';
+            
+            // Create scores HTML with title preserved
+            const scoresHTML = topTen.map((entry, index) => {
+                const position = (index + 1).toString().padStart(2, ' ');
+                const name = entry.playerName.padEnd(15, ' ');
+                const score = entry.score.toString().padStart(6, ' ');
+                return `<div>${position}. ${name} ${score}</div>`;
+            }).join('');
+
+            // Update content while preserving the title
+            leaderboardElement.innerHTML = `
+                <div class="leaderboard-title">HIGH SCORES</div>
+                <div class="scores-container">${scoresHTML}</div>
+            `;
         }
 
         // Call fetchLeaderboard to load the leaderboard when the page loads
