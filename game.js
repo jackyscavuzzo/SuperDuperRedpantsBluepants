@@ -586,6 +586,7 @@ async function submitScore(playerName, score) {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({ playerName, score }),
+        mode: "no-cors",
       }
     );
 
