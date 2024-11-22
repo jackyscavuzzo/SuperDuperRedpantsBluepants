@@ -28,6 +28,7 @@ let baseEnemySpeed = 0.8;
 let gameOver = false;
 let score = 0; // Let's add a score too! It goes up the longer you survive
 let lives = 3; // Add this new line
+let scoreSubmitted = false;
 
 // Add with other global variables
 let projectiles = [];
@@ -380,6 +381,12 @@ function gameLoop() {
       canvas.width / 2,
       canvas.height / 2 + 50
     );
+
+    if (!scoreSubmitted) {
+      const playerName = prompt("Enter your name:"); // Prompt for player name
+      submitScore(playerName, Math.floor(score / 10)); // Submit the score
+      scoreSubmitted = true; // Ensure score is submitted only once
+    }
   }
 
   // Keep running the game
@@ -391,6 +398,8 @@ function handlePlayerHit() {
   lives--;
   if (lives <= 0) {
     gameOver = true;
+    const playerName = prompt("Enter your name:"); // Prompt for player name
+    submitScore(playerName, Math.floor(score / 10)); // Submit the score
   } else {
     // Reset player position but keep score and wave
     player.x = 100;
@@ -564,5 +573,25 @@ function spawnNewWave() {
       height: 30,
       speed: newSpeed * (0.8 + Math.random() * 0.4),
     });
+  }
+}
+
+async function submitScore(playerName, score) {
+  try {
+    const response = await fetch(
+      "https://script.google.com/macros/s/AKfycbwj40sI4GUqq_p-FcxDkD9s-rQv-vymSQF9M3Bi7YoA2TiSeGWGOKtrd2DGcXqVUHBjzg/exec",
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ playerName, score }),
+      }
+    );
+
+    const result = await response.json();
+    console.log("Score submitted:", result);
+  } catch (error) {
+    console.error("Error submitting score:", error);
   }
 }

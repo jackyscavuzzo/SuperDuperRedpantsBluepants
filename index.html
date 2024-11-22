@@ -11,6 +11,35 @@
 </head>
 <body>
     <canvas id="gameCanvas" width="800" height="400"></canvas>
+    <div id="leaderboard">
+        <!-- Leaderboard entries will be inserted here -->
+    </div>
     <script src="game.js"></script>
+    <script>
+        async function fetchLeaderboard() {
+            console.log("Fetching leaderboard...");
+            try {
+                const response = await fetch('https://script.google.com/macros/s/AKfycbwj40sI4GUqq_p-FcxDkD9s-rQv-vymSQF9M3Bi7YoA2TiSeGWGOKtrd2DGcXqVUHBjzg/exec');
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                const leaderboard = await response.json();
+                displayLeaderboard(leaderboard);
+            } catch (error) {
+                console.error("Error fetching leaderboard:", error);
+            }
+        }
+
+        function displayLeaderboard(leaderboard) {
+            const leaderboardElement = document.getElementById('leaderboard');
+            leaderboardElement.innerHTML = leaderboard.map((entry, index) => `
+                <div>${index + 1}. ${entry.playerName} - ${entry.score}</div>
+            `).join('');
+            console.log(leaderboard);
+        }
+
+        // Call fetchLeaderboard to load the leaderboard when the page loads
+        window.onload = fetchLeaderboard;
+    </script>
 </body>
 </html> 
